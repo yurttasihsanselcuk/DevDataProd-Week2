@@ -120,9 +120,13 @@ data %>% leaflet() %>%
      addMarkers(popup = c(data$cityName), clusterOptions = markerClusterOptions(), 
                 label = paste("Number of People: ", "\n", data$numPeople, "Number of Seats:", "\n", data$numSeat, "Number of Films:", "\n", data$numFilm),
                 labelOptions = labelOptions(interactive = TRUE, )) %>%
-     addCircles(weight = 15, color = data$color, radius = data$numPeople/(1E5*2))
+     addCircles(weight = 15, color = data$color, radius = data$numPeople/(1E5*2)) %>%
+     addLegend(labels = c("Should Make Investment", "Should Consider Reduction", "Can Consider Reduction", "Can Consider Investment", "OK"), colors = unique(data$color))
 
 
 
 ```
 
+## Appendix
+
+This is not a worked-on project. I just wanted to show what can be done with leaflet library. Decision-making through this data should not be done :D. 
