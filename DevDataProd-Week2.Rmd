@@ -1,0 +1,128 @@
+---
+title: "Turkish Cities Cinema Rate"
+author: "ISY"
+date: "1/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE,warning = FALSE)
+```
+
+## Introduction
+
+This documents shows a map for Turkish cities' going-cinema rate in 2019. Data had been obtained from Google Maps for coordinates and https://www.tuik.gov.tr for city information.
+
+## Part 0: Setup
+
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(leaflet)
+```
+
+
+## Part 1: Preparing Data
+
+Data had been download preliminary because of language difference. There are two different datasets: one for coordinates and one for city information.
+
+
+```{r}
+data <- read.csv(file = paste0(getwd(), "/", "filmWatch.csv"), sep = ";")
+coords <- read.csv(file = paste0(getwd(), "/", "turkishcitiescoord.csv"), sep = ";")
+```
+
+Let's check both datasets. To check if we have any 0 values, we will arrange the dataset.
+
+```{r}
+data %>% arrange(numFilm) %>% head()
+```
+
+```{r}
+head(coords)
+```
+As we can see, there are some cities with 0 values. We will create their data manually later.
+
+## Part 3 : Setting New Variables and Combining Datasets
+
+We will calculate each cities watching density, which is "density of people per film". Note that since we have 0 values in dataset, we will manually change them later. 
+
+```{r}
+# Arrange both datasets according to city names alphabeticaly.
+
+data <- data %>% arrange(cityName)
+coords <- coords %>% arrange(city)
+
+#Watching Density Calculation
+
+data$watchDens <- data$numPeople / data$numSeat / data$numFilm
+
+#
+nan_val <- grepl(NaN, data$watchDens)
+data[nan_val,][["watchDens"]] <- 0
+
+```
+
+Let's mutate *lng* and *lat* variables to our main data. 
+
+```{r}
+data$lng <- coords$lng
+data$lat <- coords$lat
+```
+
+Finally, lets create color codes for density intervals so we can use them in our legend. Our colors will be:
+
+- Gray: Fifth Interval. This color will mean that closing a couple of cinemas or reducing seats must be considered.
+- White: Forth Interval. This color will mean that closing a a couple of cinemas or reducing seats should be considered.
+- Green: Third Interval. This color will mean that the proportion is OK. Investment could be made on maintenance of cinemas.
+- Yellow: Second Interval. This color will mean that a entreprenur can make investment in cinema building.
+- Red: First Interval. This color will mean that a entrepreneur should make investment in cinema building.
+
+```{r}
+densityint <- cut(data$watchDens, 5)
+data$densityInt <- densityint
+int_levels <- levels(densityint)
+
+#Create dummy variable for color
+
+data$color <- NA
+
+#Create color codes
+
+for (i in 1:nrow(data)) {
+     if (data$densityInt[i] == int_levels[5]) {
+          data$color[i] <- "gray" 
+     } 
+     
+     if (data$densityInt[i] == int_levels[4]) {
+          data$color[i] <- "white"
+     }
+     if (data$densityInt[i] == int_levels[3]) {
+          data$color[i] <- "green"
+     }
+     
+     if (data$densityInt[i] == int_levels[2]) {
+          data$color[i] <- "yellow"
+     }
+     
+     if (data$densityInt[i] == int_levels[1]) {
+          data$color[i] <- "red"
+     }
+}
+```
+
+## Part 5: Creating Map
+
+Since we have prepared our data, we will now create the map
+
+```{r}
+data %>% leaflet() %>% 
+     addTiles() %>% 
+     addMarkers(popup = c(data$cityName), clusterOptions = markerClusterOptions(), 
+                label = paste("Number of People: ", "\n", data$numPeople, "Number of Seats:", "\n", data$numSeat, "Number of Films:", "\n", data$numFilm),
+                labelOptions = labelOptions(interactive = TRUE, )) %>%
+     addCircles(weight = 15, color = data$color, radius = data$numPeople/(1E5*2))
+
+
+
+```
+
